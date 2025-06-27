@@ -1,0 +1,4 @@
+//*[@id="root"]/div[2]/div/div[3]/div[1]/div/a/img
+//*[@id="root"]/div[2]/div/div[3]/div[2]/div/a/img
+...
+//*[@id="root"]/div[2]/div/div[3]/div[61]/div/a/img
