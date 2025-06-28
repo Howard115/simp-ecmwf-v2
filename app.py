@@ -304,9 +304,15 @@ async def get_status():
 
 def download_weather_images():
     """下載氣象圖到 weather_img 目錄"""
-    driver = None
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    # Add these additional arguments for AWS environment
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.binary_location = '/usr/bin/google-chrome'  # Specify Chrome binary location
+    driver = webdriver.Chrome(options=options)
     try:
-        driver = webdriver.Chrome()
         wait = WebDriverWait(driver, 10)
         url = "https://charts.ecmwf.int/products/aifs_single_medium-mslp-wind850?projection=opencharts_south_east_asia_and_indonesia"
         image_directory = "weather_img"
