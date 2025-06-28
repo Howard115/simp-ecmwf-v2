@@ -146,4 +146,4 @@ print(
 )
 
 
-time.sleep(500)
+
