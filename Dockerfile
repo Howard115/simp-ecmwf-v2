@@ -31,7 +31,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
 WORKDIR /app
 
 COPY pyproject.toml /app/pyproject.toml
-COPY weather_img /app/weather_img
+RUN mkdir -p /app/weather_img
 COPY app.py /app/app.py
 
 CMD ["uv", "run", "app.py"]
