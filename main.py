@@ -93,7 +93,20 @@ def download_all_images(driver, wait, num_images, directory_path):
                 EC.presence_of_element_located((By.XPATH, img_xpath))
             )
 
-            file_path = os.path.join(directory_path, f"weather_image_{i}.png")
+            # Get the alt attribute for the filename
+            alt_text = img_element.get_attribute("alt")
+            if alt_text:
+                # Replace spaces with underscores and append .png
+                filename = alt_text.replace(" ", "_") + ".png"
+            else:
+                # Fallback filename if alt text is not found
+                print(
+                    f"Warning: Alt text not found for image {i}. Using default filename."
+                )
+                filename = f"weather_image_{i}.png"
+
+            file_path = os.path.join(directory_path, filename)
+
             if download_image(img_element, file_path):
                 successful_downloads += 1
 
