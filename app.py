@@ -6,6 +6,15 @@ import glob
 import re
 import datetime
 from typing import Optional
+import urllib.request
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import BackgroundTasks
 
 app = FastAPI(title="AI 氣象圖")
 
@@ -291,6 +300,110 @@ async def get_status():
         "progress": len(controller.image_files) / 61,
         "is_complete": len(controller.image_files) >= 61,
     }
+
+
+def download_weather_images():
+    """下載氣象圖到 weather_img 目錄"""
+    driver = None
+    try:
+        driver = webdriver.Chrome()
+        wait = WebDriverWait(driver, 10)
+        url = "https://charts.ecmwf.int/products/aifs_single_medium-mslp-wind850?projection=opencharts_south_east_asia_and_indonesia"
+        image_directory = "weather_img"
+        num_images_to_download = 61
+        last_image_xpath = '//*[@id="root"]/div[2]/div/div[3]/div[61]/div/a/img'
+
+        driver.get(url)
+
+        # Click the first button
+        first_button_xpath = "/html/body/main/div/div/div[2]/div/div/div[3]/div/div[1]/div/div/button/span[1]"
+        try:
+            element = wait.until(
+                EC.element_to_be_clickable((By.XPATH, first_button_xpath))
+            )
+            element.click()
+        except Exception as e:
+            print(f"Failed to click the first button: {e}")
+            return False
+
+        time.sleep(2)
+
+        # Click the second button
+        second_button_xpath = "/html/body/div[2]/div[3]/div/div[2]/div/div/div[2]/div/a"
+        try:
+            element = wait.until(
+                EC.element_to_be_clickable((By.XPATH, second_button_xpath))
+            )
+            element.click()
+        except Exception as e:
+            print(f"Failed to click the second button: {e}")
+            return False
+
+        time.sleep(5)
+
+        if not os.path.exists(image_directory):
+            os.makedirs(image_directory)
+
+        # Wait for images to be present
+        retry_count = 0
+        max_retries = 10
+        while retry_count < max_retries:
+            try:
+                wait.until(EC.presence_of_element_located((By.XPATH, last_image_xpath)))
+                break
+            except TimeoutException:
+                retry_count += 1
+                print(
+                    f"Not all images are loaded yet. Retry {retry_count}/{max_retries}"
+                )
+                time.sleep(2)
+        else:
+            print(
+                "Warning: Could not confirm all images are loaded within the retry limit."
+            )
+
+        # Download images
+        for i in range(1, num_images_to_download + 1):
+            try:
+                img_xpath = f'//*[@id="root"]/div[2]/div/div[3]/div[{i}]/div/a/img'
+                img_element = wait.until(
+                    EC.presence_of_element_located((By.XPATH, img_xpath))
+                )
+                alt_text = img_element.get_attribute("alt")
+                if alt_text:
+                    filename = alt_text.replace(" ", "_") + ".png"
+                else:
+                    filename = f"weather_image_{i}.png"
+                file_path = os.path.join(image_directory, filename)
+                src = img_element.get_attribute("src")
+                if src:
+                    urllib.request.urlretrieve(src, file_path)
+                    print(f"Downloaded: {file_path}")
+                else:
+                    print(f"No src attribute found for image {i}")
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"Error processing image {i}: {e}")
+        return True
+    except Exception as e:
+        print(f"An error occurred during the process: {e}")
+        return False
+    finally:
+        if driver:
+            driver.quit()
+
+
+# 啟動APScheduler定時任務
+scheduler = BackgroundScheduler()
+scheduler.add_job(download_weather_images, "cron", hour="2,6,12,18", minute=0)
+scheduler.start()
+
+
+@app.post("/api/trigger-crawl")
+async def trigger_crawl(background_tasks: BackgroundTasks):
+    """手動觸發爬蟲下載氣象圖"""
+    background_tasks.add_task(download_weather_images)
+    return {"message": "Crawling started in background."}
 
 
 if __name__ == "__main__":
