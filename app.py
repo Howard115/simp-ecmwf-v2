@@ -303,6 +303,17 @@ async def get_status():
 
 
 def download_weather_images():
+    """清空 weather_img 目錄中的所有檔案"""
+    image_directory = "weather_img"
+    if os.path.exists(image_directory):
+        for file in os.listdir(image_directory):
+            file_path = os.path.join(image_directory, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                    print(f"Deleted: {file_path}")
+            except Exception as e:
+                print(f"Error deleting {file_path}: {e}")
     """下載氣象圖到 weather_img 目錄"""
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
